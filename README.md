@@ -28,7 +28,7 @@ Ansible installation along with docker image build and container deployments are
 
 To achieve SSH communication among master and worker nodes, SSH private and public keys are created previously within master node and then public key content is copied into authorized_keys file in /root/.ssh/ path inside each deployed container.
 
-![Simple_Ansible-hands-on-docker_diagram](https://raw.githubusercontent.com/RecursiveDeveloper/static-media-content/refs/heads/main/Simple_Ansible-hands-on-docker_diagram.png)
+![Simple_Ansible-hands-on-docker_diagram](https://raw.githubusercontent.com/RecursiveDeveloper/static-media-content/refs/heads/main/Ansible_Multinode-Diagram.png)
 
 ## Tech Stack 
 
