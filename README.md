@@ -24,78 +24,100 @@ Simulate a distributed master - worker nodes configuration management environmen
 - 1 master node
 - 2 worker nodes deployed as docker containers from one pre-built image
 
-Ansible installation along with docker image build and container deployments are available through bash scripts to seamlessly recreate and modify configuration according to your needs.
+The image build, SSH key creation and container deployments are available through a single bash script to seamlessly recreate and modify the configuration according to your needs.
 
-To achieve SSH communication among master and worker nodes, SSH private and public keys are created previously within master node and then public key content is copied into authorized_keys file in /root/.ssh/ path inside each deployed container.
+To achieve SSH communication between master and worker nodes, an SSH key pair is generated and the public key is baked into the Docker image during the build, inside `/home/ansible/.ssh/authorized_keys`. Every container is therefore SSH-ready as soon as it starts, and Ansible connects to the `ansible` user with passwordless sudo privileges.
 
 ![Simple_Ansible-hands-on-docker_diagram](https://raw.githubusercontent.com/RecursiveDeveloper/static-media-content/refs/heads/main/Ansible_Multinode-Diagram.png)
 
-## Tech Stack 
+## Project Structure
 
-- **Client:** ---
-- **Server:** ---
-- **Database:** ---
-- **Cloud provider:** ---
-- **Tools:** Vagrant, Ansible, Docker
+```
+ansible_multinode-Lab/
+├── .gitignore
+├── README.md
+├── deploy.sh                    # Installs Ansible, generates SSH keys, builds the image, deploys containers
+├── destroy.sh                   # Removes containers, image and generated SSH artifacts
+├── ansible/
+│   ├── inventory.ini            # Inventory with container IPs, ansible user and SSH private key path
+│   └── playbook.yml             # Playbook that updates apt and installs nginx on the worker nodes
+└── docker/
+    └── Dockerfile               # Ubuntu image with SSH server and a dedicated 'ansible' sudo user
+```
 
-## Installation
+## Tech Stack
 
-1. Setup a Debian based operating system. You can use:
+- **Server:** Ubuntu 22.04 (jammy)
+- **Configuration management:** Ansible
+- **Containerization:** Docker
+- **Tools:** Bash, SSH
+
+## Prerequisites
+
+Before deploying this project, ensure you have the following prerequisites in place:
+
+1. **A Debian-based operating system.** You can use:
     * [Killercoda Playground](https://killercoda.com/playgrounds)
     * [Vagrant](https://developer.hashicorp.com/vagrant/downloads)
     * [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
 
-2. Install Docker Engine in your operating system [Docker Install](https://docs.docker.com/engine/install/)
+2. **Docker Engine** installed and running. [Docker Install](https://docs.docker.com/engine/install/)
+
+3. **Ansible** (optional). If it is not installed, `deploy.sh` installs it automatically via the official PPA.
 
 ## Deployment
 
-To deploy this project follow these steps:
+To deploy this project from the project root, follow these steps:
 
-1. In your master node or local machine, navigate into **ansible** folder and execute the provision script. This script will perform: 
-    * Creation of the private and public keys needed to communicate with worker nodes
-    * Creation of authorized_keys file with public key content
-    * Ansible installation.
+1. Run the deploy script:
 
 ```bash
-bash provision_master.sh
+bash deploy.sh
 ```
 
-2. Then navigate into **docker** folder and execute the deploy script. This script will perform: 
-    * Build of a docker image based on Dockerfile located in the same folder
-    * Deployment of two containers with SSH service up and running
-    * Copy of authorized_keys file in /root/.ssh/ path inside each deployed container
+This script performs:
+- Ansible installation (only if it is not already installed)
+- Creation of the SSH key pair (`id_ed25519` / `id_ed25519.pub`)
+- Creation of the `authorized_keys` file with the public key content
+- Removal of any existing containers and image
+- Build of the Docker image with the public key baked into `/home/ansible/.ssh/authorized_keys`
+- Deployment of two containers (`ubuntu1` on host port `8080`, `ubuntu2` on host port `8081`) with the SSH service up and running
 
-```bash
-bash deploy_containers.sh
-```
-
-3. Check and copy containers Ip addresses into inventory.ini file inside ansible folder. To check container ip address, execute this command:
+2. Copy the containers' IP addresses into `ansible/inventory.ini`, replacing the `<container-ip>` placeholder:
 
 ```bash
 docker inspect <container_name> | grep -i ipaddress
 ```
 
-Then manually copy the ip address and paste it into inventory.ini, replacing <container-ip> text, here is an example:
+Example:
 
-172.18.8.5 ansible_user=root ansible_ssh_private_key_file=/root/.ssh/id_ed25519
-
-Repeat this process depending on the number of container you've deployed.
-
-4. Check connectivity between master and nodes, navigate into ansible folder and execute
-
-```bash
-ansible all -m ping -i inventory.ini
+```
+172.18.8.5 ansible_user=ansible ansible_ssh_private_key_file=./id_ed25519 ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 ```
 
-5. If connection test is successful, execute playbook tasks into every worker node
+Repeat this process depending on the number of containers you have deployed.
+
+3. Test connectivity between the master and the worker nodes:
 
 ```bash
-ansible-playbook -i inventory.ini playbook.yml
+ansible all -m ping -i ansible/inventory.ini
 ```
 
-For more informations about vagrant commands check [vagrant-cheat-sheet](https://gist.github.com/wpscholar/a49594e2e2b918f4d0c4)
+4. If the connection test is successful, run the playbook tasks on every worker node:
 
-If needed, you can modify playbook tasks to include all the tools you want to. Besides, requirements yaml file contains all the roles that will be installed, therefore if you plan to add or remove any role, erase the corresponding line both in requirements yaml file and in the playbook file.
+```bash
+ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+```
+
+The playbook updates the apt cache (with a `cache_valid_time` of 3600 seconds), installs nginx and ensures the service is started and enabled.
+
+5. To tear down the environment (containers, image, SSH keys and `authorized_keys` artifacts):
+
+```bash
+bash destroy.sh
+```
+
+If needed, you can modify the playbook tasks to include all the tools you want to install on the worker nodes.
 
 ## Authors
 

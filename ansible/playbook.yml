@@ -1,7 +1,23 @@
 ---
 - hosts: all
+  become: true
+
+  vars:
+    apt_cache_valid_time: 3600
 
   tasks:
-    - name: print the message
-      debug:
-        msg: "Hello World"
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: "{{ apt_cache_valid_time }}"
+
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+    
+    - name: Ensure nginx is running
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
