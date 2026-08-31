@@ -14,3 +14,4 @@ authorized_keys
 # Sensitive / environment
 .env
 .env.*
+**/inventory*
