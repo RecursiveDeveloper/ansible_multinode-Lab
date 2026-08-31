@@ -40,6 +40,7 @@ ansible_multinode-Lab/
 ├── destroy.sh                   # Removes containers, image and generated SSH artifacts
 ├── ansible/
 │   ├── inventory.ini            # Inventory with container IPs, ansible user and SSH private key path
+│   ├── setup_inventory.sh       # Auto-generates the inventory from running container IPs
 │   └── playbook.yml             # Playbook that updates apt and installs nginx on the worker nodes
 └── docker/
     └── Dockerfile               # Ubuntu image with SSH server and a dedicated 'ansible' sudo user
@@ -83,19 +84,13 @@ This script performs:
 - Build of the Docker image with the public key baked into `/home/ansible/.ssh/authorized_keys`
 - Deployment of two containers (`ubuntu1` on host port `8080`, `ubuntu2` on host port `8081`) with the SSH service up and running
 
-2. Copy the containers' IP addresses into `ansible/inventory.ini`, replacing the `<container-ip>` placeholder:
+2. Generate the Ansible inventory from the running containers:
 
 ```bash
-docker inspect <container_name> | grep -i ipaddress
+bash ansible/setup_inventory.sh
 ```
 
-Example:
-
-```
-172.18.8.5 ansible_user=ansible ansible_ssh_private_key_file=./id_ed25519 ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-```
-
-Repeat this process depending on the number of containers you have deployed.
+This script inspects all running containers, retrieves their IP addresses, and populates `ansible/inventory.ini` automatically.
 
 3. Test connectivity between the master and the worker nodes:
 
